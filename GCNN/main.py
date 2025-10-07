@@ -6,7 +6,6 @@ import itertools
 import os
 import pandas as pd
 from utils.gs_utils import generate_run_id, plot_val_mae_per_target, plot_alphas_history
-import csv
 
 def get_config_grid():
     """Defines and returns the grid of configurations to be tested."""
@@ -16,9 +15,10 @@ def get_config_grid():
         "dims": [11, 64, 64], "hops": 2, "act_fn": ReLU(),
         "readout_hidden_dims": [64, 32], "pooling": "mean", "apply_readout": True,
         "learn_alpha": True, "gso_generator": normalized_hub_laplacian,
-        "use_bn": True, "dropout_p": 0.2, "patience": 50
+        "use_bn": True, "dropout_p": 0.2, "patience": 50,
+        "learn_alpha" : False
     }
-    grid_params = {"learn_alpha": [False, True], "alpha": [-0.5, 0, 0.5, 1]}
+    grid_params = {"alpha": [-0.5, 0, 0.5, 1]}
 
     keys, values = zip(*grid_params.items())
     grid = [dict(zip(keys, combo)) for combo in itertools.product(*values)]
@@ -51,7 +51,7 @@ def run_and_log_trial(config, results_dir):
     for name, value in config.items():
         row[name] = value.__name__ if callable(value) else str(value)
 
-    print(f"✅ Run {run_id} complete. Artifacts saved to {run_dir}")
+    print(f"Run {run_id} complete. Artifacts saved to {run_dir}")
     return row
 
 def summarize_results(results, output_file):
