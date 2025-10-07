@@ -1,7 +1,6 @@
-# main.py
 import torch
 from torch.nn import ReLU
-from model.operators import hub_laplacian, normalized_hub_laplacian
+from model.operators import normalized_hub_laplacian
 from experiments.gcnn_train import run_experiment
 import itertools
 import os
@@ -9,119 +8,80 @@ import pandas as pd
 from utils.gs_utils import generate_run_id, plot_val_mae_per_target, plot_alphas_history
 import csv
 
-# -----------------------
-# 1. Default + Grid Params
-# -----------------------
-DEFAULT_PARAMS = {
-    "N": 1200,
-    "targets": [0],
-    "batch_size": 64,
-    "lr": 1e-4,
-    "alpha_lr": 1e-2,
-    "weight_decay": 1e-5,
-    "alpha": 0.5,
-    "num_epochs": 300,
-    "dims": [11, 64, 64],
-    "hops": 2,
-    "act_fn": ReLU(),
-    "readout_hidden_dims": [64, 32],
-    "pooling": "mean",
-    "apply_readout": True,
-    "learn_alpha": True,
-    "gso_generator": normalized_hub_laplacian,
-    "use_bn": True,
-    "dropout_p": 0.2,
-    "patience": 50
-}
+def get_config_grid():
+    """Defines and returns the grid of configurations to be tested."""
+    default_params = {
+        "N": 1200, "targets": [0], "batch_size": 64, "lr": 1e-4,
+        "alpha_lr": 1e-2, "weight_decay": 1e-5, "alpha": 0.5, "num_epochs": 300,
+        "dims": [11, 64, 64], "hops": 2, "act_fn": ReLU(),
+        "readout_hidden_dims": [64, 32], "pooling": "mean", "apply_readout": True,
+        "learn_alpha": True, "gso_generator": normalized_hub_laplacian,
+        "use_bn": True, "dropout_p": 0.2, "patience": 50
+    }
+    grid_params = {"learn_alpha": [False, True], "alpha": [-0.5, 0, 0.5, 1]}
 
-GRID_PARAMS = {
-    "learn_alpha": [False, True],
-    "alpha" : [-0.5, 0 ,0.5, 1]
-}
+    keys, values = zip(*grid_params.items())
+    grid = [dict(zip(keys, combo)) for combo in itertools.product(*values)]
 
-# Build the grid
-keys, values = zip(*GRID_PARAMS.items())
-grid = [dict(zip(keys, combo)) for combo in itertools.product(*values)]
+    configs = []
+    for g_params in grid:
+        config = default_params.copy()
+        config.update(g_params)
+        configs.append(config)
+    return configs
 
-# -----------------------
-# 2. Prepare Result Paths
-# -----------------------
-TOP_RESULTS_DIR = "GCNN/results_turbo"
-os.makedirs(TOP_RESULTS_DIR, exist_ok=True)
-
-SUMMARY_CSV = os.path.join(TOP_RESULTS_DIR, "summary.csv")
-csv_exists = os.path.isfile(SUMMARY_CSV)
-
-# We'll write header once
-fieldnames = None
-
-# -----------------------
-# 3. Run Experiments
-# -----------------------
-for idx, grid_params in enumerate(grid, start=1):
-    # Merge defaults + grid
-    config = DEFAULT_PARAMS.copy()
-    config.update(grid_params)
-
-    # Unique run ID
+def run_and_log_trial(config, results_dir):
+    """Runs a single experiment trial and logs the results."""
     run_id = generate_run_id(4)
-    print(f"\n--- Run {idx}/{len(grid)} — ID: {run_id} ---")
-    for k, v in grid_params.items():
-        name = v.__name__ if callable(v) else v
-        print(f"  {k}: {name}")
-
-    # Create run‐specific folder
-    run_dir = os.path.join(TOP_RESULTS_DIR, run_id)
+    run_dir = os.path.join(results_dir, run_id)
     os.makedirs(run_dir, exist_ok=True)
 
-    model, best_val_mean_mae, test_per_target_mae, val_per_target_mae_history, alphas_history = run_experiment(config)
+    print(f"\n--- Starting Run ID: {run_id} ---")
 
-    # --- Save model weights ---
+    model, best_val, test_mae, val_mae_hist, alphas_hist = run_experiment(config)
+
     torch.save(model.state_dict(), os.path.join(run_dir, "model.pt"))
+    plot_val_mae_per_target(val_mae_hist, run_id, save_dir=run_dir)
+    plot_alphas_history(alphas_hist, run_id, save_dir=run_dir)
 
-    # --- Save plots into run_dir ---
-    plot_val_mae_per_target(val_per_target_mae_history, run_id, save_dir=run_dir)
-    plot_alphas_history(alphas_history, run_id, save_dir=run_dir)
+    row = {"run_id": run_id, "best_val_mean_mae": best_val, "mean_test_mae": test_mae.mean().item()}
+    for i, mae in enumerate(test_mae):
+        row[f"test_target_{i}_mae"] = mae.item()
 
-    # --- Prepare summary row ---
-    row = {
-        "run_id": run_id,
-        "best_val_mean_mae": best_val_mean_mae,
-        "mean_test_mae": test_per_target_mae.mean().item(),
-    }
-    # per-target test MAEs
-    for t_i, mae in enumerate(test_per_target_mae):
-        row[f"test_target_{t_i}_mae"] = mae.item()
-    # record all hyperparameters
-    for param_name, param_value in config.items():
-        if isinstance(param_value, torch.nn.Module):
-            row[param_name] = param_value.__class__.__name__
-        elif callable(param_value):
-            row[param_name] = param_value.__name__
-        else:
-            row[param_name] = param_value
-
-    # initialize fieldnames on first run
-    if fieldnames is None:
-        fieldnames = list(row.keys())
-
-    # --- Append to summary CSV ---
-    with open(SUMMARY_CSV, "a", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        if not csv_exists:
-            writer.writeheader()
-            csv_exists = True
-        writer.writerow(row)
+    for name, value in config.items():
+        row[name] = value.__name__ if callable(value) else str(value)
 
     print(f"✅ Run {run_id} complete. Artifacts saved to {run_dir}")
+    return row
 
-# -----------------------
-# 4. Final Summary
-# -----------------------
-print(f"\nAll runs complete. Summary written to {SUMMARY_CSV}")
+def summarize_results(results, output_file):
+    """Writes the summary of all trial results to a CSV file."""
+    if not results:
+        return
 
-# Optionally print best overall
-df = pd.read_csv(SUMMARY_CSV)
-best = df.loc[df["mean_test_mae"].idxmin()]
-print("\n--- Best Run (lowest mean_test_mae) ---")
-print(best.to_string())
+    df = pd.DataFrame(results)
+    df.to_csv(output_file, index=False)
+
+    print(f"\nAll runs complete. Summary written to {output_file}")
+    best_run = df.loc[df["mean_test_mae"].idxmin()]
+    print("\n--- Best Run (lowest mean_test_mae) ---")
+    print(best_run.to_string())
+
+def main():
+    """Main function to run the grid search and save results."""
+    results_dir = "GCNN/results_turbo"
+    os.makedirs(results_dir, exist_ok=True)
+
+    configs = get_config_grid()
+    all_results = []
+
+    for i, config in enumerate(configs, 1):
+        print(f"\n--- Running Trial {i}/{len(configs)} ---")
+        trial_results = run_and_log_trial(config, results_dir)
+        all_results.append(trial_results)
+
+    summary_file = os.path.join(results_dir, "summary.csv")
+    summarize_results(all_results, summary_file)
+
+if __name__ == "__main__":
+    main()
