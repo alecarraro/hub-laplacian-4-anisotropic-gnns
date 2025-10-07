@@ -6,7 +6,7 @@ This is the GitHub repository for our CS4350 project, "Hub Laplacian Operators f
 
 The complete project report, `Report_GNN_project.pdf`, can be found [here](Report_GNN_project.pdf).
 
-## 🚀 Running the Models
+## Running the Models
 
 This repository contains implementations of two models: our custom Graph Convolutional Neural Network (GCNN) and a modified version of Graph Attention Diffusion (GAD).
 
