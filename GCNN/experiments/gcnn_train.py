@@ -4,10 +4,10 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from gcnn import GCNNalpha
-import os 
-from data import get_data_loaders
-from gs_utils import save_experiment_results, generate_run_id
+from ..gcn.gcnn import GCNNalpha
+import os
+from ..utils.data import get_data_loaders
+from ..utils.gs_utils import save_experiment_results, generate_run_id
 
 
 def train_epoch(model, loader, optimizer, loss_fn, device):

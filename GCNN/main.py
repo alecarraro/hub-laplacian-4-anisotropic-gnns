@@ -1,12 +1,12 @@
 # main.py
 import torch
 from torch.nn import ReLU
-from operators import hub_laplacian, turbohub_laplacian
-from gcnn_train import run_experiment  # this should return model, histories, etc.
+from gcn.operators import hub_laplacian, normalized_hub_laplacian
+from experiments.gcnn_train import run_experiment
 import itertools
 import os
 import pandas as pd
-from gs_utils import generate_run_id, plot_val_mae_per_target, plot_alphas_history
+from utils.gs_utils import generate_run_id, plot_val_mae_per_target, plot_alphas_history
 import csv
 
 # -----------------------
@@ -28,7 +28,7 @@ DEFAULT_PARAMS = {
     "pooling": "mean",
     "apply_readout": True,
     "learn_alpha": True,
-    "gso_generator": turbohub_laplacian,
+    "gso_generator": normalized_hub_laplacian,
     "use_bn": True,
     "dropout_p": 0.2,
     "patience": 50

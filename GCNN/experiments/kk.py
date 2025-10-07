@@ -5,7 +5,7 @@ from torch_geometric.utils import to_dense_adj
 from itertools import combinations
 import torch.nn.functional as F
 import torch.nn as nn
-from operators import hub_laplacian
+from ..gcn.operators import hub_laplacian
 import matplotlib.pyplot as plt
 
 # Dataset
