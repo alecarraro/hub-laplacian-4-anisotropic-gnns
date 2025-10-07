@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from ..gcn.gcnn import GCNNalpha
+from ..model.gcnn import GCNNalpha
 import os
 from ..utils.data import get_data_loaders
 from ..utils.gs_utils import save_experiment_results, generate_run_id

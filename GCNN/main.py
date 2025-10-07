@@ -1,7 +1,7 @@
 # main.py
 import torch
 from torch.nn import ReLU
-from gcn.operators import hub_laplacian, normalized_hub_laplacian
+from model.operators import hub_laplacian, normalized_hub_laplacian
 from experiments.gcnn_train import run_experiment
 import itertools
 import os

@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from operators import hub_laplacian, normalized_adjacency, normalized_laplacian, adv_diff, turbohub_laplacian
 
-# Define available operators
+# available operators
 OPERATORS = {
     "hub_laplacian": hub_laplacian,
     "normalized_adjacency": normalized_adjacency,
@@ -14,10 +14,10 @@ OPERATORS = {
     "turbohub_laplacian": turbohub_laplacian,
 }
 
-# User selects two operators to compare
-OPERATOR_NAMES = ['normalized_laplacian', 'turbohub_laplacian']  # example selection
+# selects two operators to compare
+OPERATOR_NAMES = ['normalized_laplacian', 'turbohub_laplacian']
 
-# Histogram settings
+# settings
 NUM_BINS = 50
 
 
@@ -49,7 +49,7 @@ def process_graphs(adj_matrices: list[torch.Tensor], operator_fn, alpha: float) 
 def plot_comparison(gaps1, ranges1, gaps2, ranges2, name1, name2):
     plt.figure(figsize=(18, 5))
 
-    # Spectral gap
+    # spectral gap
     plt.subplot(1, 2, 1)
     plt.hist(gaps1, bins=NUM_BINS, alpha=0.7, label=name1)
     plt.hist(gaps2, bins=NUM_BINS, alpha=0.7, label=name2)
@@ -58,7 +58,7 @@ def plot_comparison(gaps1, ranges1, gaps2, ranges2, name1, name2):
     plt.ylabel('Frequency')
     plt.legend()
 
-    # Spectral range
+    # spectral range
     plt.subplot(1, 2, 2)
     plt.hist(ranges1, bins=NUM_BINS, alpha=0.7, label=name1)
     plt.hist(ranges2, bins=NUM_BINS, alpha=0.7, label=name2)
@@ -72,23 +72,20 @@ def plot_comparison(gaps1, ranges1, gaps2, ranges2, name1, name2):
 
 
 def main():
-    # Load subset of QM9
     dataset = QM9(root='data/QM9')[:10000]
-
-    # Build dense adjacencies
     adj_matrices = [to_dense_adj(data.edge_index, max_num_nodes=data.num_nodes)[0] for data in dataset]
 
-    # Select operators and alphas
+    # operators
     name1, name2 = OPERATOR_NAMES
     fn1 = OPERATORS[name1]
     fn2 = OPERATORS[name2]
     alpha = 1.0  # example alpha value
 
-    # Compute spectra
+    # spectra
     gaps1, ranges1 = process_graphs(adj_matrices, fn1, alpha)
     gaps2, ranges2 = process_graphs(adj_matrices, fn2, alpha)
 
-    # Plot results
+    # results
     plot_comparison(gaps1, ranges1, gaps2, ranges2, name1, name2)
 
 if __name__ == '__main__':

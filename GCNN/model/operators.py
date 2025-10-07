@@ -7,27 +7,26 @@ def hub_laplacian(A: torch.Tensor, alpha: float) -> torch.Tensor:
     """
     is_batched = A.dim() == 3
 
-    # Sum over the last dimension to get degrees
+    # sum over the last dimension to get degrees
     deg_dim = 2 if is_batched else 1
     deg = A.sum(dim=deg_dim)
 
-    # Select diagonal function based on input type
+    # diagonal function based on input type
     diag_fn = torch.diag_embed if is_batched else torch.diag
 
-    # Handle standard Laplacian case (alpha=0) efficiently
+    # callback for standard Laplacian case (alpha=0)
     if alpha == 0:
         return diag_fn(deg) - A
 
-    # Power of degrees for D_alpha and D_-alpha
-    # Add a small epsilon to prevent issues with zero-degree nodes
-    deg_stable = deg + 1e-9
+    #  D_alpha and D_-alpha
+    deg_stable = deg + 1e-9 # add eps for numerical stability
     deg_alpha = deg_stable.pow(alpha)
     deg_neg_alpha = deg_stable.pow(-alpha)
 
     D_alpha = diag_fn(deg_alpha)
     D_neg_alpha = diag_fn(deg_neg_alpha)
 
-    # Compute Xi matrix
+    # Xi matrix
     if is_batched:
         deg_i = deg_stable.unsqueeze(2)  # [B, N, 1]
         deg_j = deg_stable.unsqueeze(1)  # [B, 1, N]
@@ -35,13 +34,11 @@ def hub_laplacian(A: torch.Tensor, alpha: float) -> torch.Tensor:
         deg_i = deg_stable.view(-1, 1)      # [N, 1]
         deg_j = deg_stable.view(1, -1)      # [1, N]
 
-    # Ratio of degrees
+    # ratio of degrees
     ratio = (deg_j / deg_i).pow(alpha)
-
-    # Mask out non-edges
     deg_ratio_pow = ratio * A
 
-    # Sum over neighbors to get the diagonal of Xi
+    # diagonal of Xi
     sum_dim = 2 if is_batched else 1
     Xi_diag = deg_ratio_pow.sum(dim=sum_dim)
     Xi = diag_fn(Xi_diag)
@@ -55,10 +52,10 @@ def adv_diff(A: torch.Tensor, alpha: float, gamma_diff: float = 1.0, gamma_adv: 
     """
     is_batched = A.dim() == 3
 
-    L_diff = hub_laplacian(A, alpha=0)  # Standard Laplacian
+    L_diff = hub_laplacian(A, alpha=0)  # standard Laplacian
     L_hub = hub_laplacian(A, alpha=alpha)
 
-    # Transpose dimensions for batched vs. unbatched
+    # transpose dimensions for batched vs. unbatched
     transpose_dims = (1, 2) if is_batched else (0, 1)
 
     return gamma_adv * L_hub + gamma_diff * torch.transpose(L_diff, *transpose_dims)
@@ -70,7 +67,6 @@ def normalized_adjacency(A: torch.Tensor) -> torch.Tensor:
     Assumes unbatched input A: [N, N].
     """
     deg = A.sum(dim=1)
-    # Add a small epsilon for stability if degrees can be zero
     D_neg_half = torch.diag(torch.pow(deg + 1e-9, -0.5))
     A_hat = A + torch.eye(A.shape[0], device=A.device)
     return D_neg_half @ A_hat @ D_neg_half
